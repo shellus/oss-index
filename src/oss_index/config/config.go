@@ -16,9 +16,12 @@ type ossConfig struct {
 
 func GetConfig() *ossConfig {
 	configPath := filepath.Join(sutil.HomeDir(), ".ossutilconfig")
+	if !sutil.FileExists(configPath) {
+		logs.Fatal("configfile: %s not found", configPath)
+	}
 	config, err := configparser.Read(configPath)
 	if err != nil {
-		logs.Fatal(err)
+		logs.Fatal("read configfile err: ",err)
 	}
 
 	section, err := config.Section("Credentials")
