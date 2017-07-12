@@ -1,10 +1,13 @@
-package oss_index_test
+package oss_index
 
 import (
 	"testing"
-	"github.com/shellus/oss-index/src/oss_index"
 )
 
 func TestMain2(t *testing.T) {
-	oss_index.Main()
+	Main()
+}
+
+func TestAllPath(t *testing.T) {
+	getAllPath(getBucket())
 }
