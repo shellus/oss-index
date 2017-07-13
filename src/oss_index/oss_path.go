@@ -97,7 +97,7 @@ func getAllPath(bucket *oss.Bucket) map[string][]Object {
 
 		dir, childDir := path.Split(k[:len(k) - 1])
 
-		prefixs[dir] = append(prefixs[dir], Object{Title: childDir + "/", Key:k, IsDir: true, Size: 0})
+		prefixs[dir] = append([]Object{{Title: childDir + "/", Key:k, IsDir: true, Size: 0}}, prefixs[dir]...)
 	}
 	return prefixs
 }
