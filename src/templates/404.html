@@ -54,7 +54,8 @@
         .obj-list > li {
             margin-bottom: 3px;
         }
-        .path-box{
+
+        .path-box {
             font-size: 1.5em;
         }
     </style>
@@ -69,8 +70,10 @@
     <div class="content">
         <div class="well path-box">Current path: <span id="current-path">加载中...</span></div>
         <ul class="obj-list" id="parent-level">
-            <li><a href="/"><span class="glyphicon glyphicon-home" aria-hidden="true" style="color: #3f51b5;"></span> 首页</a></li>
-            <li><a href="../"><span class="glyphicon glyphicon-menu-left" aria-hidden="true" style="color: #ffc107;"></span> 上一级</a></li>
+            <li><a href="/"><span class="glyphicon glyphicon-home" aria-hidden="true" style="color: #3f51b5;"></span> 首页</a>
+            </li>
+            <li><a href="../"><span class="glyphicon glyphicon-menu-left" aria-hidden="true"
+                                    style="color: #ffc107;"></span> 上一级</a></li>
 
         </ul>
         <ul class="obj-list" id="dir-list">
@@ -98,18 +101,18 @@
 
 
     function initPage(data) {
-        $("#current-path").html("/"+data.prefix);
+        $("#current-path").html("/" + data.prefix);
 
         for (var i in data.objects) {
             var icon = "";
-            if (data.objects[i]['is_dir']){
+            if (data.objects[i]['is_dir']) {
                 icon = '<span class="glyphicon glyphicon-folder-open" aria-hidden="true" style="color: #009688;"></span>';
-            }else{
+            } else {
                 icon = '<span class="glyphicon glyphicon-file" aria-hidden="true" style="color: #2196F3;"></span>';
 
 
             }
-            var liHtml = '<li><a href="/' + data.objects[i].key + '">'+ icon + ' ' + data.objects[i].title + '</a></li>';
+            var liHtml = '<li><a href="/' + data.objects[i].key + '">' + icon + ' ' + data.objects[i].title + '</a></li>';
             $("#obj-list").append(liHtml);
         }
 
