@@ -2,6 +2,8 @@
 
 给阿里云oss储存增加列出目录功能
 
+在线DEMO http://cdn.endaosi.com/
+
 
 配置文件默认获取用户目录下的`.ossutilconfig`文件，配置文件格式为：
 ```ini
