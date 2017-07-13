@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"github.com/shellus/pkg/sutil"
-	"fmt"
 )
 
 func fetchAllObject(bucket *oss.Bucket) ([]oss.ObjectProperties) {
@@ -41,7 +40,7 @@ func fetchAllObject(bucket *oss.Bucket) ([]oss.ObjectProperties) {
 	logs.Debug("fetch object done , count %d", len(objects))
 	return objects
 }
-func getAllPath(bucket *oss.Bucket) {
+func getAllPath(bucket *oss.Bucket)map[string][]Object{
 
 	var objects []oss.ObjectProperties
 
@@ -67,7 +66,10 @@ func getAllPath(bucket *oss.Bucket) {
 		}
 	}
 
-	//prefixs := make(map[string][]oss.ObjectProperties)
+	prefixs := make(map[string][]Object)
+
+	// 防止根目录下无文件
+	prefixs["/"] = []Object{}
 
 	for _, i := range objects {
 
@@ -75,55 +77,27 @@ func getAllPath(bucket *oss.Bucket) {
 
 		// 分割成路径片段后，最后一个成员要么是空，要么是文件名
 		// 无论如何，去掉最后一个，得到所在目录、然后将当前path加入到这个目录
-		//
-		fmt.Println(len(pathParts),i.Key, pathParts)
+		pathParts = pathParts[:len(pathParts) - 1]
+		dir := strings.Join(pathParts, "/") + "/"
 
-		//prefix :=
+		prefixs[dir] = append(prefixs[dir], Object{Key:i.Key, IsDir: false, Size: i.Size})
 	}
 
+	// 把下级目录作为上级目录下的一个object
+	for k := range prefixs {
 
 
-}
+		pathParts := strings.Split(k, "/")
+		pathParts = pathParts[:len(pathParts) - 2]
+		// 得到上级目录
+		dir := strings.Join(pathParts, "/") + "/"
 
-// 获取目录的元信息
-func getPathMeta(bucket *oss.Bucket, lsPath string) *PathMeta {
-	logs.Debug("List path '%s'", lsPath)
-	//if exist, err := bucket.IsObjectExist(lsPath); err != nil || exist == false {
-	//	if err != nil {
-	//		logs.Fatal("bucket IsObjectExist %s error: %s", lsPath, err)
-	//	}else {
-	//		logs.Fatal("bucket object path %s not exist", lsPath)
-	//	}
-	//}
-
-	result, err := bucket.ListObjects(oss.Prefix(lsPath), oss.Delimiter("/"))
-	if err != nil {
-		logs.Fatal(err)
-	}
-
-	index := new(PathMeta)
-
-	index.Prefix = lsPath
-
-	for _, i := range result.CommonPrefixes {
-		index.CommonPrefixes = append(index.CommonPrefixes, i)
-	}
-	for _, i := range result.Objects {
-
-		// 当前路径不注册
-		if i.Key == lsPath {
-			continue
+		// 如果上级目录存在，则把当前目录加入作为object
+		if _, ok := prefixs[dir]; ok {
+			prefixs[dir] = append(prefixs[dir], Object{Key: k, IsDir: true, Size: 0})
 		}
-
-		// 元文件名不注册
-		if len(i.Key) >= len(metaFileName) && strings.Contains(i.Key[len(i.Key) - len(metaFileName):], metaFileName) {
-			continue
-		}
-
-		index.Objects = append(index.Objects, Object{Key:i.Key, Size:i.Size})
 	}
-	logs.Debug("List path '%s'd", lsPath)
-	return index
+	return prefixs
 }
 
 // 上传元信息到路径
