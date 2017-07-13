@@ -40,7 +40,7 @@ func fetchAllObject(bucket *oss.Bucket) ([]oss.ObjectProperties) {
 	logs.Debug("fetch object done , count %d", len(objects))
 	return objects
 }
-func getAllPath(bucket *oss.Bucket)map[string][]Object{
+func getAllPath(bucket *oss.Bucket) map[string][]Object {
 
 	var objects []oss.ObjectProperties
 
@@ -71,32 +71,47 @@ func getAllPath(bucket *oss.Bucket)map[string][]Object{
 	// 防止根目录下无文件
 	prefixs["/"] = []Object{}
 
+	// 目录是不存在的。这里全是object
 	for _, i := range objects {
 
 		pathParts := strings.Split(i.Key, "/")
 
 		// 分割成路径片段后，最后一个成员要么是空，要么是文件名
 		// 无论如何，去掉最后一个，得到所在目录、然后将当前path加入到这个目录
-		pathParts = pathParts[:len(pathParts) - 1]
-		dir := strings.Join(pathParts, "/") + "/"
+		dir := "/" + strings.Join(pathParts[:len(pathParts) - 1], "/") + "/"
 
-		prefixs[dir] = append(prefixs[dir], Object{Key:i.Key, IsDir: false, Size: i.Size})
+		// 根目录下的文件
+		if dir == "//" {
+			dir = "/"
+		}
+
+		title := pathParts[len(pathParts) - 1]
+
+		// 搞不懂，为什么当前目录也是一个object，过滤掉。
+		if dir[1:] == i.Key {
+			continue
+		}
+		prefixs[dir] = append(prefixs[dir], Object{Title:title, Key:"/" + i.Key, IsDir: false, Size: i.Size})
 	}
 
 	// 把下级目录作为上级目录下的一个object
 	for k := range prefixs {
-
-
+		// 顶级目录不添加给别人做下级
+		if k == "/" {
+			continue
+		}
 		pathParts := strings.Split(k, "/")
-		pathParts = pathParts[:len(pathParts) - 2]
 		// 得到上级目录
-		dir := strings.Join(pathParts, "/") + "/"
+		dir := strings.Join(pathParts[:len(pathParts) - 2], "/") + "/"
+
+		title := pathParts[len(pathParts) - 2] + "/"
 
 		// 如果上级目录存在，则把当前目录加入作为object
 		if _, ok := prefixs[dir]; ok {
-			prefixs[dir] = append(prefixs[dir], Object{Key: k, IsDir: true, Size: 0})
+			prefixs[dir] = append(prefixs[dir], Object{Title: title, Key:k, IsDir: true, Size: 0})
 		}
 	}
+
 	return prefixs
 }
 
@@ -110,9 +125,13 @@ func updateMetaInfo(bucket *oss.Bucket, pathMeta *PathMeta) {
 
 	key := path.Join(pathMeta.Prefix, metaFileName)
 	logs.Info("Wriet file '%s'", key)
-	err = bucket.PutObject(key, bytes.NewReader(jsonBuf), oss.ContentType("application/json; charset=UTF-8"))
-	if err != nil {
-		logs.Fatal(err)
+
+	if len(key) == 0 {
+		logs.Fatal("key %s invalid", key)
 	}
-	logs.Info("Wriet file '%s'd", key)
+
+	err = bucket.PutObject(key[1:], bytes.NewReader(jsonBuf), oss.ContentType("application/json; charset=UTF-8"))
+	if err != nil {
+		logs.Fatal("PutObject %s err: %s", key, err)
+	}
 }
