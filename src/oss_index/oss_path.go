@@ -3,7 +3,6 @@ package oss_index
 import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/shellus/pkg/logs"
-	"strings"
 	"encoding/json"
 	"path"
 	"bytes"
@@ -69,49 +68,37 @@ func getAllPath(bucket *oss.Bucket) map[string][]Object {
 	prefixs := make(map[string][]Object)
 
 	// 防止根目录下无文件
-	prefixs["/"] = []Object{}
+	prefixs[""] = []Object{}
 
 	// 目录是不存在的。这里全是object
 	for _, i := range objects {
+		dir, file := path.Split(i.Key)
 
-		pathParts := strings.Split(i.Key, "/")
-
-		// 分割成路径片段后，最后一个成员要么是空，要么是文件名
-		// 无论如何，去掉最后一个，得到所在目录、然后将当前path加入到这个目录
-		dir := "/" + strings.Join(pathParts[:len(pathParts) - 1], "/") + "/"
-
-		// 根目录下的文件
-		if dir == "//" {
-			dir = "/"
-		}
-
-		title := pathParts[len(pathParts) - 1]
-
-		// 搞不懂，为什么当前目录也是一个object，过滤掉。
-		if dir[1:] == i.Key {
+		// 目录object？？？该死的oss。什么玩意啊。。
+		if file == "" {
+			logs.Debug("ignore folder %s", i.Key)
 			continue
 		}
-		prefixs[dir] = append(prefixs[dir], Object{Title:title, Key:"/" + i.Key, IsDir: false, Size: i.Size})
+
+		prefixs[dir] = append(prefixs[dir], Object{Title:file, Key: i.Key, IsDir: false, Size: i.Size})
 	}
 
 	// 把下级目录作为上级目录下的一个object
 	for k := range prefixs {
 		// 顶级目录不添加给别人做下级
-		if k == "/" {
+		if k == "" {
+			logs.Debug("ignore root folder")
 			continue
 		}
-		pathParts := strings.Split(k, "/")
-		// 得到上级目录
-		dir := strings.Join(pathParts[:len(pathParts) - 2], "/") + "/"
-
-		title := pathParts[len(pathParts) - 2] + "/"
-
-		// 如果上级目录存在，则把当前目录加入作为object
-		if _, ok := prefixs[dir]; ok {
-			prefixs[dir] = append(prefixs[dir], Object{Title: title, Key:k, IsDir: true, Size: 0})
+		if k[len(k) - 1:] != "/" {
+			logs.Warning("invalid folder %s", k)
+			continue
 		}
-	}
 
+		dir, childDir := path.Split(k[:len(k) - 1])
+
+		prefixs[dir] = append(prefixs[dir], Object{Title: childDir + "/", Key:k, IsDir: true, Size: 0})
+	}
 	return prefixs
 }
 
@@ -130,7 +117,7 @@ func updateMetaInfo(bucket *oss.Bucket, pathMeta *PathMeta) {
 		logs.Fatal("key %s invalid", key)
 	}
 
-	err = bucket.PutObject(key[1:], bytes.NewReader(jsonBuf), oss.ContentType("application/json; charset=UTF-8"))
+	err = bucket.PutObject(key, bytes.NewReader(jsonBuf), oss.ContentType("application/json; charset=UTF-8"))
 	if err != nil {
 		logs.Fatal("PutObject %s err: %s", key, err)
 	}
